@@ -1,0 +1,8 @@
+scrape_configs:
+  - job_name: 'haproxy'
+    static_configs:
+      - targets: ['he:9101']
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['localhost:9090']
