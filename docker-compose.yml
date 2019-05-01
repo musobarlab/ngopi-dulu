@@ -1,0 +1,66 @@
+version: "3"
+
+services:
+  website1:
+    container_name: website_1
+    build: "./website1"
+    ports:
+      - "8000:8000"
+    networks:
+        - web
+  website2:
+    container_name: website_2
+    build: "./website2"
+    ports:
+      - "8001:8001"
+    networks:
+        - web
+  haproxy_img:
+    build: ./haproxy
+    ports:
+        - 9000:9000
+    links:
+      - website1
+      - website2
+    networks:
+        - web
+    restart: always
+    environment:
+        - WEBSERVER_1_IP=${WEBSERVER_1_IP}
+        - WEBSERVER_2_IP=${WEBSERVER_2_IP}
+        - WEBSERVER_1_EXPOSED_PORT=${WEBSERVER_1_EXPOSED_PORT}
+        - WEBSERVER_2_EXPOSED_PORT=${WEBSERVER_2_EXPOSED_PORT}
+  haproxy_exporter:
+    container_name: my_haproxy_exporter
+    image: prom/haproxy-exporter
+    ports:
+      - "9101:9101"
+    depends_on:
+      - haproxy_img
+    links:
+      - haproxy_img:hi
+    networks:
+      - web
+    restart: on-failure:10
+    command: --haproxy.scrape-uri=${HAPROXY_EXPORTER_SCRAPE_URL}
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.1.0
+    ports:
+      - 9090:9090
+    depends_on:
+      - haproxy_exporter
+    links:
+      - haproxy_exporter:he
+    networks:
+      - web
+    restart: on-failure:10
+    volumes:
+      - ${PWD}/prometheus/config:/etc/prometheus
+      - ${PWD}/prometheus/data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+networks:
+  web:
+    driver: bridge
